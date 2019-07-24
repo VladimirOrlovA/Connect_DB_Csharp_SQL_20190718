@@ -11,7 +11,7 @@ namespace Connect_DB_Csharp_SQL_20190718
 {
     class Program
     {
-        private static readonly string conn_str = "Server = ASUS_P52F\\SQLEXPRESS; Database = InternetShop; user Id=ASUS_P52F\\Orlov; Password=7294";
+        private static readonly string conn_str = "Server = ASUS_P52F\\SQLEXPRESS; Database = InternetShop; user Id = OVA; Password=123";
 
         private static void getDataReader()
         {
@@ -39,6 +39,19 @@ namespace Connect_DB_Csharp_SQL_20190718
                 SqlDataAdapter da = new SqlDataAdapter(cmd);
                 da.Fill(ds);
                 return ds;
+            }
+        }
+
+        private static DataTable getDataSet_OleDB()
+        {
+            DataSet ds = new DataSet();
+            using (OleDbConnection conn = new OleDbConnection(conn_str_ole))
+            {
+                conn.Open();
+                OleDbCommand cmd = new OleDbCommand("select product_id, product_name, cost from Product", conn);
+                OleDbDataAdapter da = new OleDbDataAdapter(cmd);
+                da.Fill(ds);
+                return ds.Tables[0];
             }
         }
 
@@ -108,6 +121,92 @@ namespace Connect_DB_Csharp_SQL_20190718
             }
         }
 
+        // использование DAPPER
+
+        private static void Dapper_sel()
+        {
+            Console.WriteLine("DAPPER");
+            using (IDbConnection db = new SqlConnection(conn_str))
+            {
+                List<ProductCategory> res = db.Query<ProductCategory>("SELECT category_id, category_name FROM ProductCategory", commandType: CommandType.Text).ToList();
+                foreach (var item in res)
+                {
+                    Console.WriteLine($"{item.category_id} - {item.category_name}");
+                }
+            }
+        }
+
+        private static void Linq()
+        {
+            DataSet ds = new DataSet();
+            using (SqlConnection conn = new SqlConnection(conn_str))
+            {
+                conn.Open();
+                SqlCommand cmd = new SqlCommand("SELECT category_id, category_name FROM ProductCategory", conn);
+                SqlDataAdapter da = new SqlDataAdapter(cmd);
+                da.Fill(ds);
+            }
+            List<ProductCategory> res_1 = (from p in ds.Tables[0].AsEnumerable()
+                                           select new ProductCategory() { category_id = p.Field<int>(0), category_name = p.Field<string>(1) }).ToList();
+
+            List<ProductCategory> res_2 = ds.Tables[0].AsEnumerable()
+                                          .Select(z => new ProductCategory() { category_id = z.Field<int>(0), category_name = z.Field<string>(1) }).ToList();
+
+            Console.WriteLine("LINQ_1");
+            foreach (var item in res_1)
+            {
+                Console.WriteLine($"{item.category_id} - {item.category_name}");
+            }
+
+            Console.WriteLine("LINQ_2");
+            foreach (var item in res_2)
+            {
+                Console.WriteLine($"{item.category_id} - {item.category_name}");
+            }
+
+
+        }
+
+        private static void getProductCat(int? category_id)
+        {
+            Console.WriteLine("DAPPER");
+            using (IDbConnection db = new SqlConnection(conn_str))
+            {
+                List<ProdCatProducts> res = db.Query<ProdCatProducts>("p_get_pc_p", new { category_id = category_id }, commandType: CommandType.StoredProcedure).ToList();
+                foreach (var item in res)
+                {
+                    Console.WriteLine($"{item.category_name} - {item.product_name}- {item.product_model}- {item.cost}");
+                }
+            }
+
+        }
+
+        private static void getCustomerEF()
+        {
+            using (Context db = new Context())
+            {
+                foreach (var item in db.Customer.ToList())
+                {
+                    Console.WriteLine($"{item.first_name} - {item.last_name}");
+                }
+
+            }
+        }
+
+        private static void addCust()
+        {
+            using (Context db = new Context())
+            {
+                db.Customer.Add(new Customer { first_name = "asda" });
+                db.SaveChanges();
+
+                db.Customer.Remove(new Customer { });
+                db.Database.ExecuteSqlCommand("delete from ....");
+                db.SaveChanges();
+
+            }
+        }
+
         static void Main(string[] args)
         {
             //getDataReader();
@@ -146,11 +245,16 @@ namespace Connect_DB_Csharp_SQL_20190718
 
             //UpdateProdById(7, "model");
 
-            Console.WriteLine(GetCostSum(7));
+            Console.WriteLine(GetCostSum(1));
 
             Console.ReadKey();
         }
+    }
 
+    class ProductCategory
+    {
+        public int category_id { get; set; }
+        public string category_name { get; set; }
     }
 }
 
